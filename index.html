@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QC Inspection System - Garment Quality Control</title>
+    
+    <!-- Google Fonts for modern typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- jsPDF for PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <!-- Our CSS file will be linked here -->
+    <link rel="stylesheet" href="styles/styles.css">
+</head>
+<body>
+
+<!-- 
+    ============================================
+    AUTHENTICATION LAYER
+    ============================================
+    This overlay covers the entire app until user logs in.
+    It has two forms: Login and Register, shown/hidden as needed.
+    When hidden, the main app becomes accessible.
+-->
+<div id="auth-layer">
+    <div class="auth-card">
+        <!-- Logo section for branding -->
+        <div class="auth-logo">
+            <div class="auth-logo-icon">👕</div>
+            <div class="auth-logo-text">QC<span>Inspect</span></div>
+        </div>
+        
+        <!-- LOGIN FORM (visible by default) -->
+        <div id="login-form">
+            <div class="auth-title">Welcome back</div>
+            <div class="auth-subtitle">Sign in to your inspection workspace</div>
+            
+            <!-- Error message container (hidden by default) -->
+            <div class="auth-error" id="login-error"></div>
+            
+            <div class="form-group">
+                <label class="form-label">Username</label>
+                <input class="form-input" type="text" id="login-username" 
+                       placeholder="Enter your username" autocomplete="username">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Password</label>
+                <input class="form-input" type="password" id="login-password" 
+                       placeholder="Enter your password" autocomplete="current-password">
+            </div>
+            
+            <button class="btn btn-primary" id="login-btn">Sign In</button>
+            
+            <div class="auth-switch">
+                Don't have an account? <a id="show-register-link">Create one</a>
+            </div>
+        </div>
+        
+        <!-- REGISTER FORM (hidden initially) -->
+        <div id="register-form" style="display:none">
+            <div class="auth-title">Create account</div>
+            <div class="auth-subtitle">Join your team's QC workspace</div>
+            
+            <!-- Message containers for feedback -->
+            <div class="auth-error" id="register-error"></div>
+            <div class="auth-success" id="register-success"></div>
+            
+            <div class="form-group">
+                <label class="form-label">Username</label>
+                <input class="form-input" type="text" id="reg-username" 
+                       placeholder="Choose a username (min 3 characters)">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Password</label>
+                <input class="form-input" type="password" id="reg-password" 
+                       placeholder="Create a password (min 6 characters)">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Confirm Password</label>
+                <input class="form-input" type="password" id="reg-confirm" 
+                       placeholder="Repeat your password">
+            </div>
+            
+            <button class="btn btn-primary" id="register-btn">Create Account</button>
+            
+            <div class="auth-switch">
+                Already have an account? <a id="show-login-link">Sign in</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 
+    ============================================
+    MAIN APPLICATION (visible after login)
+    ============================================
+-->
+<div id="app">
+    <!-- 
+        SIDEBAR OVERLAY (for mobile)
+        When sidebar opens on mobile, this dark overlay appears behind it
+    -->
+    <div id="sidebar-overlay" onclick="closeSidebar()"></div>
+    
+    <!-- 
+        HAMBURGER MENU BUTTON (mobile only)
+        Three spans create the hamburger icon that transforms into an 'X' when open
+    -->
+    <button id="hamburger" onclick="toggleSidebar()">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+    
+    <!-- 
+        SIDEBAR NAVIGATION
+        Contains logo, navigation items, user info, theme toggle, and storage indicator
+    -->
+    <nav id="sidebar">
+        <!-- Logo section -->
+        <div class="sidebar-logo">
+            <div class="sidebar-logo-icon">👕</div>
+            <div class="sidebar-logo-text">QC<span>Inspect</span></div>
+        </div>
+        
+        <!-- Main navigation items -->
+        <div class="sidebar-nav">
+            <div class="nav-section-label">Main</div>
+            
+            <!-- Dashboard button -->
+            <button class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')">
+                <span class="nav-icon">📊</span>
+                <span>Dashboard</span>
+            </button>
+            
+            <!-- Inspections list button -->
+            <button class="nav-item" data-page="inspections" onclick="navigate('inspections')">
+                <span class="nav-icon">🔍</span>
+                <span>Inspections</span>
+            </button>
+            
+            <!-- New inspection button -->
+            <button class="nav-item" data-page="new-inspection" onclick="openCreateForm()">
+                <span class="nav-icon">➕</span>
+                <span>New Inspection</span>
+            </button>
+            
+            <!-- Admin section (hidden for non-admin users) -->
+            <div class="nav-section-label" id="admin-section" style="display:none">Admin</div>
+            <button class="nav-item" data-page="admin" id="admin-nav-item" style="display:none">
+                <span class="nav-icon">⚙️</span>
+                <span>User Management</span>
+            </button>
+        </div>
+        
+        <!-- Sidebar footer with user controls -->
+        <div class="sidebar-footer">
+            <!-- Storage usage indicator -->
+            <div class="storage-bar-wrap">
+                <div class="storage-bar-track">
+                    <div class="storage-bar-fill" id="storage-bar-fill"></div>
+                </div>
+                <div class="storage-bar-label" id="storage-bar-label">Storage: -- KB</div>
+            </div>
+            
+            <!-- Dark/Light theme toggle -->
+            <div class="theme-toggle">
+                <div class="theme-toggle-label">
+                    <span>🌙</span>
+                    <span>Dark Mode</span>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="theme-toggle-input">
+                    <span class="toggle-track"></span>
+                </label>
+            </div>
+            
+            <!-- Current user information -->
+            <div class="user-pill">
+                <div class="user-avatar" id="user-avatar">?</div>
+                <div class="user-info">
+                    <div class="user-name" id="user-name-display">--</div>
+                    <div class="user-role" id="user-role-display">--</div>
+                </div>
+                <button class="logout-btn" onclick="handleLogout()" title="Sign out">⤻</button>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- 
+        ============================================
+        MAIN CONTENT AREA
+        All pages are here, only one is visible at a time
+        ============================================
+    -->
+    <main id="main">
+        
+        <!-- 
+            PAGE 1: DASHBOARD
+            Shows statistics and recent inspections
+        -->
+        <div class="page active" id="page-dashboard">
+            <div class="dash-header">
+                <div>
+                    <div class="page-title" id="dash-greeting">Good morning</div>
+                    <div class="page-subtitle">Here's your QC activity at a glance</div>
+                </div>
+                <button class="btn btn-new" onclick="openCreateForm()">+ New Inspection</button>
+            </div>
+            
+            <!-- Statistics cards - populated dynamically -->
+            <div class="stats-grid">
+                <div class="stat-card stat-total">
+                    <div class="stat-icon">📋</div>
+                    <div class="stat-value" id="stat-total">0</div>
+                    <div class="stat-label">Total</div>
+                </div>
+                <div class="stat-card stat-passed">
+                    <div class="stat-icon">✅</div>
+                    <div class="stat-value" id="stat-passed">0</div>
+                    <div class="stat-label">Passed</div>
+                    <div class="stat-bar-wrap">
+                        <div class="stat-bar stat-bar-passed" id="bar-passed"></div>
+                    </div>
+                </div>
+                <div class="stat-card stat-failed">
+                    <div class="stat-icon">❌</div>
+                    <div class="stat-value" id="stat-failed">0</div>
+                    <div class="stat-label">Failed</div>
+                    <div class="stat-bar-wrap">
+                        <div class="stat-bar stat-bar-failed" id="bar-failed"></div>
+                    </div>
+                </div>
+                <div class="stat-card stat-pending">
+                    <div class="stat-icon">⏳</div>
+                    <div class="stat-value" id="stat-pending">0</div>
+                    <div class="stat-label">Pending</div>
+                    <div class="stat-bar-wrap">
+                        <div class="stat-bar stat-bar-pending" id="bar-pending"></div>
+                    </div>
+                </div>
+                <div class="stat-card stat-progress">
+                    <div class="stat-icon">🔄</div>
+                    <div class="stat-value" id="stat-progress">0</div>
+                    <div class="stat-label">In Progress</div>
+                    <div class="stat-bar-wrap">
+                        <div class="stat-bar stat-bar-progress" id="bar-progress"></div>
+                    </div>
+                </div>
+                <div class="stat-card stat-draft">
+                    <div class="stat-icon">📝</div>
+                    <div class="stat-value" id="stat-draft">0</div>
+                    <div class="stat-label">Drafts</div>
+                    <div class="stat-bar-wrap">
+                        <div class="stat-bar stat-bar-draft" id="bar-draft"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Recent inspections section -->
+            <div class="dash-section">
+                <div class="dash-section-header">
+                    <div class="dash-section-title">Recent Inspections</div>
+                    <button class="btn btn-ghost btn-sm" onclick="navigate('inspections')">View all</button>
+                </div>
+                <div class="recent-table-wrap">
+                    <table class="recent-table" id="recent-table">
+                        <thead>
+                            <tr>
+                                <th>PO</th>
+                                <th>Style</th>
+                                <th>Washing</th>
+                                <th>Inspector</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recent-tbody"></tbody>
+                    </table>
+                    <div class="empty-state" id="recent-empty" style="display:none">
+                        <div class="empty-icon">🔍</div>
+                        <div class="empty-title">No inspections yet</div>
+                        <div class="empty-text">Create your first inspection to get started</div>
+                        <button class="btn btn-primary" style="width:auto;margin-top:16px" onclick="openCreateForm()">+ New Inspection</button>
+                        <br>
+                        <button class="btn btn-ghost btn-sm" style="margin-top:10px" onclick="seedDemoData()">Load demo data</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 
+            PAGE 2: INSPECTIONS LIST
+            Shows all inspections with search, filter, sort, and pagination
+        -->
+        <div class="page" id="page-inspections">
+            <div class="list-header">
+                <div>
+                    <div class="page-title">Inspections</div>
+                    <div class="page-subtitle">All QC inspection records</div>
+                </div>
+                <button class="btn btn-new" onclick="openCreateForm()">+ New Inspection</button>
+            </div>
+            
+            <!-- Search and filter toolbar -->
+            <div class="list-toolbar">
+                <div class="search-wrap">
+                    <span class="search-icon">🔍</span>
+                    <input class="form-input search-input" type="text" id="list-search" 
+                           placeholder="Search by PO, style, washing or inspector...">
+                </div>
+                <div class="filter-row">
+                    <select class="form-input filter-select" id="filter-status">
+                        <option value="">All Statuses</option>
+                        <option>Draft</option>
+                        <option>In Progress</option>
+                        <option>Passed</option>
+                        <option>Failed</option>
+                        <option>Pending</option>
+                    </select>
+                    <input class="form-input filter-select" type="date" id="filter-date-from" placeholder="From">
+                    <input class="form-input filter-select" type="date" id="filter-date-to" placeholder="To">
+                    <button class="btn btn-ghost btn-sm" id="clear-filters">Clear</button>
+                </div>
+            </div>
+            
+            <!-- Results count -->
+            <div class="list-meta" id="list-meta"></div>
+            
+            <!-- Inspections table -->
+            <div class="dash-section">
+                <div class="recent-table-wrap">
+                    <table class="recent-table" id="inspections-table">
+                        <thead>
+                            <tr>
+                                <th style="width:36px"></th>
+                                <th class="sortable" data-sort="po">PO <span class="sort-icon" id="sort-po"></span></th>
+                                <th class="sortable" data-sort="styleNumber">Style <span class="sort-icon" id="sort-styleNumber"></span></th>
+                                <th>Washing</th>
+                                <th>Qty</th>
+                                <th>Inspector</th>
+                                <th class="sortable" data-sort="date">Date <span class="sort-icon" id="sort-date"></span></th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inspections-tbody"></tbody>
+                    </table>
+                    <div class="empty-state" id="inspections-empty" style="display:none">
+                        <div class="empty-icon">🔍</div>
+                        <div class="empty-title" id="inspections-empty-title">No inspections found</div>
+                        <div class="empty-text" id="inspections-empty-text">Try adjusting your search or filters</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Pagination controls -->
+            <div class="pagination-row" id="pagination-row"></div>
+        </div>
+        
+        <!-- 
+            PAGE 3: INSPECTION FORM
+            Used for both creating new and editing existing inspections
+        -->
+        <div class="page" id="page-new-inspection">
+            <div class="form-page-header">
+                <div>
+                    <div class="page-title" id="form-page-title">New Inspection</div>
+                    <div class="page-subtitle" id="form-page-subtitle">Fill in the details below</div>
+                </div>
+                <div class="form-page-actions">
+                    <button class="btn btn-ghost btn-sm" onclick="cancelForm()">Cancel</button>
+                    <button class="btn btn-outline-save btn-sm" id="save-draft-btn">Save Draft</button>
+                    <button class="btn btn-new btn-sm" id="submit-btn">Submit</button>
+                </div>
+            </div>
+            
+            <!-- Re-inspection notice (hidden unless this is a re-inspection) -->
+            <div class="reinsp-notice" id="reinsp-notice" style="display:none">
+                Re-inspection linked to original: <span id="reinsp-ref"></span>
+            </div>
+            
+            <!-- Main inspection details card -->
+            <div class="form-card">
+                <div class="form-card-title">Inspection Details</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">PO Number <span class="req">*</span></label>
+                        <input class="form-input" type="text" id="f-po">
+                        <div class="field-error" id="err-po"></div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Style Number <span class="req">*</span></label>
+                        <input class="form-input" type="text" id="f-style">
+                        <div class="field-error" id="err-style"></div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Washing Name <span class="req">*</span></label>
+                        <input class="form-input" type="text" id="f-washing">
+                        <div class="field-error" id="err-washing"></div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Quantity <span class="req">*</span></label>
+                        <input class="form-input" type="number" id="f-qty" min="1">
+                        <div class="field-error" id="err-qty"></div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Date <span class="req">*</span></label>
+                        <input class="form-input" type="date" id="f-date">
+                        <div class="field-error" id="err-date"></div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Inspector Name</label>
+                        <input class="form-input" type="text" id="f-inspector">
+                    </div>
+                    
+                    <div class="form-group form-group-full">
+                        <label class="form-label">Status</label>
+                        <div class="status-selector" id="status-selector">
+                            <button class="status-opt" data-val="Draft">Draft</button>
+                            <button class="status-opt" data-val="In Progress">In Progress</button>
+                            <button class="status-opt" data-val="Passed">Passed</button>
+                            <button class="status-opt" data-val="Failed">Failed</button>
+                            <button class="status-opt" data-val="Pending">Pending</button>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group form-group-full">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-input form-textarea" id="f-notes" rows="3"></textarea>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Defects section - dynamically populated -->
+            <div class="form-card">
+                <div class="form-card-header">
+                    <div class="form-card-title">Defects</div>
+                    <button class="btn btn-ghost btn-sm" id="add-defect-btn">+ Add Defect</button>
+                </div>
+                <div id="defects-list"></div>
+                <div class="defects-empty" id="defects-empty">No defects added yet. Click + Add Defect to log one.</div>
+            </div>
+            
+            <!-- Form action buttons -->
+            <div class="form-bottom-actions">
+                <button class="btn btn-ghost" onclick="cancelForm()">Cancel</button>
+                <button class="btn btn-outline-save" id="save-draft-bottom">Save Draft</button>
+                <button class="btn btn-new" id="submit-bottom">Submit Inspection</button>
+            </div>
+        </div>
+        
+        <!-- 
+            PAGE 4: DETAIL VIEW
+            Shows complete inspection details including defects and photos
+        -->
+        <div class="page" id="page-detail">
+            <div class="detail-header">
+                <button class="btn btn-ghost btn-sm" onclick="navigate('inspections')">← Back</button>
+                <div class="detail-header-actions" id="detail-actions"></div>
+            </div>
+            
+            <!-- Hero section with key info -->
+            <div class="detail-hero" id="detail-hero">
+                <div class="detail-hero-left">
+                    <div class="detail-po" id="detail-po"></div>
+                    <div class="detail-meta-row">
+                        <span id="detail-style-badge"></span>
+                        <span id="detail-washing-badge"></span>
+                    </div>
+                </div>
+                <div class="detail-hero-right">
+                    <div id="detail-status-badge"></div>
+                    <div class="detail-reinsp-tag" id="detail-reinsp-tag" style="display:none">Re-inspection</div>
+                </div>
+            </div>
+            
+            <!-- Two-column info grid -->
+            <div class="detail-grid">
+                <div class="detail-info-card">
+                    <div class="detail-section-title">Order Info</div>
+                    <div class="detail-fields">
+                        <div class="detail-field">
+                            <span class="detail-field-label">PO Number</span>
+                            <span class="detail-field-val" id="d-po"></span>
+                        </div>
+                        <div class="detail-field">
+                            <span class="detail-field-label">Style Number</span>
+                            <span class="detail-field-val" id="d-style"></span>
+                        </div>
+                        <div class="detail-field">
+                            <span class="detail-field-label">Washing Name</span>
+                            <span class="detail-field-val" id="d-washing"></span>
+                        </div>
+                        <div class="detail-field">
+                            <span class="detail-field-label">Quantity</span>
+                            <span class="detail-field-val" id="d-qty"></span>
+                        </div>
+                        <div class="detail-field">
+                            <span class="detail-field-label">Date</span>
+                            <span class="detail-field-val" id="d-date"></span>
+                        </div>
+                        <div class="detail-field">
+                            <span class="detail-field-label">Inspector</span>
+                            <span class="detail-field-val" id="d-inspector"></span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="detail-info-card">
+                    <div class="detail-section-title">Record Info</div>
+                    <div class="detail-fields">
+                        <div class="detail-field">
+                            <span class="detail-field-label">Status</span>
+                            <span class="detail-field-val" id="d-status-text"></span>
+                        </div>
+                        <div class="detail-field">
+                            <span class="detail-field-label">Created By</span>
+                            <span class="detail-field-val" id="d-created-by"></span>
+                        </div>
+                        <div class="detail-field">
+                            <span class="detail-field-label">Last Edited By</span>
+                            <span class="detail-field-val" id="d-edited-by"></span>
+                        </div>
+                        <div class="detail-field">
+                            <span class="detail-field-label">Created At</span>
+                            <span class="detail-field-val" id="d-created-at"></span>
+                        </div>
+                        <div class="detail-field">
+                            <span class="detail-field-label">Updated At</span>
+                            <span class="detail-field-val" id="d-updated-at"></span>
+                        </div>
+                        <div class="detail-field" id="d-orig-row" style="display:none">
+                            <span class="detail-field-label">Original</span>
+                            <span class="detail-field-val" id="d-orig-id"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Notes section (hidden if no notes) -->
+            <div class="detail-card" id="d-notes-card" style="display:none">
+                <div class="detail-section-title">Notes</div>
+                <div class="detail-notes" id="d-notes"></div>
+            </div>
+            
+            <!-- Defects section -->
+            <div class="detail-card">
+                <div class="detail-section-title">Defects</div>
+                <div class="defect-summary" id="defect-summary"></div>
+                <div id="detail-defects-list"></div>
+                <div class="empty-state" id="detail-defects-empty" style="display:none">
+                    <div class="empty-title">No defects recorded</div>
+                </div>
+            </div>
+            
+            <!-- Re-inspection call to action (shown only for failed inspections) -->
+            <div class="reinsp-cta" id="reinsp-cta" style="display:none">
+                <div class="reinsp-cta-text">
+                    <strong>This inspection failed.</strong> Would you like to create a re-inspection?
+                </div>
+                <button class="btn btn-new" id="create-reinsp-btn">Create Re-inspection</button>
+            </div>
+        </div>
+        
+        <!-- 
+            PAGE 5: ADMIN PANEL
+            Only visible to users with Admin role
+        -->
+        <div class="page" id="page-admin">
+            <div class="admin-header">
+                <div>
+                    <div class="page-title">User Management</div>
+                    <div class="page-subtitle">Manage accounts and assign roles</div>
+                </div>
+            </div>
+            
+            <!-- Statistics cards -->
+            <div class="admin-stats" id="admin-stats"></div>
+            
+            <!-- Search and filter toolbar -->
+            <div class="admin-toolbar">
+                <div class="search-wrap" style="max-width:340px">
+                    <span class="search-icon">🔍</span>
+                    <input class="form-input search-input" type="text" id="admin-search" 
+                           placeholder="Search by username...">
+                </div>
+                <select class="form-input filter-select" id="admin-role-filter">
+                    <option value="">All Roles</option>
+                    <option>Inspector</option>
+                    <option>Supervisor</option>
+                    <option>Admin</option>
+                </select>
+            </div>
+            
+            <!-- Users table -->
+            <div class="dash-section">
+                <div class="recent-table-wrap">
+                    <table class="recent-table" id="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Avatar</th>
+                                <th>Username</th>
+                                <th>Role</th>
+                                <th>Registered</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-tbody"></tbody>
+                    </table>
+                    <div class="empty-state" id="admin-empty" style="display:none">
+                        <div class="empty-title">No users found</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+    </main>
+</div>
+
+<!-- 
+    ============================================
+    MODAL DIALOGS
+    Used for confirmations (delete, etc.)
+    ============================================
+-->
+
+<!-- Delete inspection confirmation modal -->
+<div class="modal-backdrop" id="delete-modal" style="display:none">
+    <div class="modal">
+        <div class="modal-icon">🗑️</div>
+        <div class="modal-title">Delete Inspection?</div>
+        <div class="modal-text">This action cannot be undone.</div>
+        <div class="modal-actions">
+            <button class="btn btn-ghost" id="cancel-delete-btn">Cancel</button>
+            <button class="btn btn-danger" id="confirm-delete-btn">Delete</button>
+        </div>
+    </div>
+</div>
+
+<!-- Delete user confirmation modal -->
+<div class="modal-backdrop" id="delete-user-modal" style="display:none">
+    <div class="modal">
+        <div class="modal-icon">⚠️</div>
+        <div class="modal-title">Delete User?</div>
+        <div class="modal-text">The user account will be permanently removed. Inspections will remain.</div>
+        <div class="modal-actions">
+            <button class="btn btn-ghost" id="cancel-delete-user-btn">Cancel</button>
+            <button class="btn btn-danger" id="confirm-delete-user-btn">Delete User</button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast notification container -->
+<div id="toast-container"></div>
+
+<!-- 
+    ============================================
+    JAVASCRIPT FILES
+    Loaded in order of dependencies
+    ============================================
+-->
+<script src="scripts/utils.js"></script>
+<script src="scripts/storage.js"></script>
+<script src="scripts/auth.js"></script>
+<script src="scripts/ui.js"></script>
+<script src="scripts/exports.js"></script>
+<script src="scripts/app.js"></script>
+
+</body>
+</html>
